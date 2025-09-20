@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Consulta de Unidade de Saúde</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input { width: 100%; max-width: 400px; padding: 8px; margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 8px; border: 1px solid #ccc; }
+    th { background-color: #eee; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+  </style>
+</head>
+<body>
+
+  <h1>Consulta de Unidade de Saúde</h1>
+  <input type="text" id="searchInput" placeholder="Digite o nome da unidade..." />
+
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Unidade / Serviço de Saúde</th>
+        <th>CNES</th>
+        <th>Serviço</th>
+        <th>Porte</th>
+        <th>Horário de Funcionamento</th>
+        <th>Endereço</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- resultados vão aparecer aqui -->
+    </tbody>
+  </table>
+
+  <script>
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSe-lAHiIyi73wszoYZpTY5Ip2U263CN75qPV9VswSxf2d-4h_UAGM9ibDqLafjr4AQ7iawZlvKyeJ-/pub?output=csv";
+    let dados = [];
+
+    // Função para parse CSV simples
+    function parseCSV(text) {
+      const lines = text.trim().split("\\n");
+      const headers = lines[0].split(",").map(h => h.trim());
+      const items = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        const parts = line.split(",").map(p => p.trim());
+        const obj = {};
+        for (let j = 0; j < headers.length; j++) {
+          obj[headers[j]] = parts[j] || "";
+        }
+        items.push(obj);
+      }
+      return items;
+    }
+
+    async function loadDados() {
+      try {
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+          throw new Error("Não foi possível carregar os dados: " + response.status);
+        }
+        const text = await response.text();
+        dados = parseCSV(text);
+      } catch (error) {
+        console.error("Erro:", error);
+      }
+    }
+
+    function filtrarPorNome(nome) {
+      nome = nome.toLowerCase();
+      return dados.filter(item => {
+        const unidade = (item["Unidade / Serviço de Saúde"] || "").toLowerCase();
+        return unidade.includes(nome);
+      });
+    }
+
+    function mostrarResultados(lista) {
+      const tbody = document.querySelector("#resultsTable tbody");
+      tbody.innerHTML = "";
+
+      if (lista.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 6;
+        td.textContent = "Nenhuma unidade encontrada.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      lista.forEach(item => {
+        const tr = document.createElement("tr");
+        const campos = ["Unidade / Serviço de Saúde", "CNES", "Serviço", "Porte", "Horário de Funcionamento", "Endereço"];
+        campos.forEach(campo => {
+          const td = document.createElement("td");
+          td.textContent = item[campo] || "-";
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadDados();
+      const input = document.getElementById("searchInput");
+      input.addEventListener("input", () => {
+        const termo = input.value;
+        if (!termo.trim()) {
+          mostrarResultados([]);
+        } else {
+          const filtrados = filtrarPorNome(termo);
+          mostrarResultados(filtrados);
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
